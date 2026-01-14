@@ -15,6 +15,8 @@ from nrgkick_api import (
 
 DOMAIN: Final = "nrgkick"
 
+ATTR_ALTITUDE: Final = "altitude"
+
 # Default polling interval (seconds).
 DEFAULT_SCAN_INTERVAL: Final = 30
 

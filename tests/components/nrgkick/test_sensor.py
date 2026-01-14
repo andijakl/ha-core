@@ -287,10 +287,6 @@ async def test_cellular_and_gps_entities_are_gated_by_model_type(
         "cellular_mode",
         "cellular_rssi",
         "cellular_operator",
-        "gps_latitude",
-        "gps_longitude",
-        "gps_altitude",
-        "gps_accuracy",
     )
     for key in optional_keys:
         unique_id = f"TEST123456_{key}"
@@ -301,3 +297,19 @@ async def test_cellular_and_gps_entities_are_gated_by_model_type(
             assert entity_id is None, (
                 f"{model_type}: did not expect {key} to be created"
             )
+
+    tracker_unique_id = "TEST123456_device_location"
+    tracker_entity_id = entity_registry.async_get_entity_id(
+        "device_tracker", "nrgkick", tracker_unique_id
+    )
+    if expect_optional_entities:
+        assert tracker_entity_id is not None, (
+            f"{model_type}: expected device_location tracker to be created"
+        )
+        entry = entity_registry.async_get(tracker_entity_id)
+        assert entry is not None
+        assert entry.disabled
+    else:
+        assert tracker_entity_id is None, (
+            f"{model_type}: did not expect device_location tracker to be created"
+        )

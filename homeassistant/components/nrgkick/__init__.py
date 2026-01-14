@@ -10,6 +10,7 @@ from .api import NRGkickAPI
 from .coordinator import NRGkickConfigEntry, NRGkickDataUpdateCoordinator
 
 PLATFORMS: list[Platform] = [
+    Platform.DEVICE_TRACKER,
     Platform.SENSOR,
 ]
 

@@ -127,8 +127,7 @@ async def async_setup_entry(
     async_add_entities(
         NRGkickSensor(coordinator, description)
         for description in SENSORS
-        if has_sim_module
-        or description.value_path[:2] not in (("info", "cellular"), ("info", "gps"))
+        if has_sim_module or description.value_path[:2] != ("info", "cellular")
     )
 
 
@@ -245,47 +244,6 @@ SENSORS: tuple[NRGkickSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_path=("info", "cellular", "operator"),
-    ),
-    # INFO - GPS (optional, only if GPS module is available)
-    NRGkickSensorEntityDescription(
-        key="gps_latitude",
-        translation_key="gps_latitude",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement="°",
-        suggested_display_precision=6,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
-        value_path=("info", "gps", "latitude"),
-    ),
-    NRGkickSensorEntityDescription(
-        key="gps_longitude",
-        translation_key="gps_longitude",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement="°",
-        suggested_display_precision=6,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
-        value_path=("info", "gps", "longitude"),
-    ),
-    NRGkickSensorEntityDescription(
-        key="gps_altitude",
-        translation_key="gps_altitude",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement="m",
-        suggested_display_precision=2,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
-        value_path=("info", "gps", "altitude"),
-    ),
-    NRGkickSensorEntityDescription(
-        key="gps_accuracy",
-        translation_key="gps_accuracy",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement="m",
-        suggested_display_precision=2,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
-        value_path=("info", "gps", "accuracy"),
     ),
     # VALUES - Energy
     NRGkickSensorEntityDescription(
