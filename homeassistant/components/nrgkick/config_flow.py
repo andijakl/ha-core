@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
+from nrgkick_api import (
+    NRGkickAPI,
+    NRGkickAPIDisabledError,
+    NRGkickAuthenticationError,
+    NRGkickConnectionError,
+)
 import voluptuous as vol
 import yarl
 
@@ -16,7 +24,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import (
-    NRGkickAPI,
     NRGkickApiClientApiDisabledError,
     NRGkickApiClientAuthenticationError,
     NRGkickApiClientCommunicationError,
@@ -48,7 +55,7 @@ def _normalize_host(value: str) -> str:
     return value.strip("/").split("/", 1)[0]
 
 
-HOST_SCHEMA = cv.string
+HOST_SCHEMA = vol.All(cv.string, vol.Strip, vol.Length(min=1))
 
 STEP_USER_DATA_SCHEMA = vol.Schema({vol.Required(CONF_HOST): HOST_SCHEMA})
 
@@ -76,9 +83,35 @@ async def validate_input(
         session=session,
     )
 
-    await api.test_connection()
+    try:
+        await api.test_connection()
+        info = await api.get_info(["general"], raw=True)
+    except NRGkickApiClientError:
+        # Raised by tests or other helpers; let it bubble.
+        raise
+    except NRGkickAuthenticationError as err:
+        raise NRGkickApiClientAuthenticationError(
+            translation_domain=DOMAIN,
+            translation_key="authentication_error",
+        ) from err
+    except NRGkickAPIDisabledError as err:
+        raise NRGkickApiClientApiDisabledError(
+            translation_domain=DOMAIN,
+            translation_key="json_api_disabled",
+        ) from err
+    except NRGkickConnectionError as err:
+        raise NRGkickApiClientCommunicationError(
+            translation_domain=DOMAIN,
+            translation_key="communication_error",
+            translation_placeholders={"error": str(err)},
+        ) from err
+    except (TimeoutError, aiohttp.ClientError, OSError) as err:
+        raise NRGkickApiClientCommunicationError(
+            translation_domain=DOMAIN,
+            translation_key="communication_error",
+            translation_placeholders={"error": str(err)},
+        ) from err
 
-    info = await api.get_info(["general"])
     device_name = info.get("general", {}).get("device_name")
     if not device_name:
         device_name = "NRGkick"
@@ -106,6 +139,96 @@ class NRGkickConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered_host: str | None = None
         self._discovered_name: str | None = None
         self._pending_host: str | None = None
+
+    async def async_step_reauth(
+        self, _user_input: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle reauthentication."""
+        if not (entry_id := self.context.get("entry_id")) or not (
+            entry := self.hass.config_entries.async_get_entry(entry_id)
+        ):
+            return self.async_show_form(
+                step_id="reauth_confirm",
+                data_schema=STEP_AUTH_DATA_SCHEMA,
+                errors={"base": "unknown"},
+                description_placeholders={
+                    "device_ip": "",
+                },
+            )
+
+        self._pending_host = entry.data[CONF_HOST]
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm reauthentication."""
+        errors: dict[str, str] = {}
+
+        if TYPE_CHECKING:
+            assert self._pending_host is not None
+
+        if user_input is not None:
+            username = user_input.get(CONF_USERNAME)
+            password = user_input.get(CONF_PASSWORD)
+
+            try:
+                await validate_input(
+                    self.hass,
+                    self._pending_host,
+                    username=username,
+                    password=password,
+                )
+            except NRGkickApiClientApiDisabledError:
+                errors["base"] = "json_api_disabled"
+            except NRGkickApiClientAuthenticationError:
+                errors["base"] = "invalid_auth"
+            except NRGkickApiClientCommunicationError:
+                errors["base"] = "cannot_connect"
+            except NRGkickApiClientError:
+                _LOGGER.exception("Unexpected error")
+                errors["base"] = "unknown"
+            else:
+                if not (entry_id := self.context.get("entry_id")):
+                    return self.async_show_form(
+                        step_id="reauth_confirm",
+                        data_schema=STEP_AUTH_DATA_SCHEMA,
+                        errors={"base": "unknown"},
+                        description_placeholders={
+                            "device_ip": self._pending_host,
+                        },
+                    )
+
+                entry = self.hass.config_entries.async_get_entry(entry_id)
+                if entry is None:
+                    return self.async_show_form(
+                        step_id="reauth_confirm",
+                        data_schema=STEP_AUTH_DATA_SCHEMA,
+                        errors={"base": "unknown"},
+                        description_placeholders={
+                            "device_ip": self._pending_host,
+                        },
+                    )
+
+                data_updates: dict[str, Any] = {}
+                if username is not None:
+                    data_updates[CONF_USERNAME] = username
+                if password is not None:
+                    data_updates[CONF_PASSWORD] = password
+
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data_updates=data_updates,
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=STEP_AUTH_DATA_SCHEMA,
+            errors=errors,
+            description_placeholders={
+                "device_ip": self._pending_host,
+            },
+        )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

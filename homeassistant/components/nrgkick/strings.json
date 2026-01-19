@@ -4,7 +4,8 @@
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "already_in_progress": "Configuration is already in progress",
       "json_api_disabled": "JSON API is disabled on the device",
-      "no_serial_number": "Device does not provide a serial number"
+      "no_serial_number": "Device does not provide a serial number",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
     },
     "error": {
       "cannot_connect": "Cannot connect to the NRGkick device. Test the connection using a browser: http://{device_ip}/info",
@@ -14,6 +15,17 @@
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "step": {
+      "reauth_confirm": {
+        "data": {
+          "password": "[%key:common::config_flow::data::password%]",
+          "username": "[%key:common::config_flow::data::username%]"
+        },
+        "data_description": {
+          "password": "Password for Basic Auth.",
+          "username": "Username for Basic Auth."
+        },
+        "description": "Authentication is required for {device_ip}."
+      },
       "user": {
         "data": {
           "host": "[%key:common::config_flow::data::host%]"
@@ -339,6 +351,9 @@
     },
     "invalid_response": {
       "message": "The device returned an invalid response."
+    },
+    "json_api_disabled": {
+      "message": "JSON API is disabled on the device"
     },
     "unknown_error": {
       "message": "An unknown error occurred."
