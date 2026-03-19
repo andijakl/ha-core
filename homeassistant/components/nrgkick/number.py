@@ -21,6 +21,7 @@ from homeassistant.components.number import (
 from homeassistant.const import UnitOfElectricCurrent, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_call_later
 
 from .coordinator import NRGkickConfigEntry, NRGkickData, NRGkickDataUpdateCoordinator
 from .entity import NRGkickEntity
@@ -153,3 +154,11 @@ class NRGkickNumber(NRGkickEntity, NumberEntity):
         await self._async_call_api(
             self.entity_description.set_value_fn(self.coordinator, value)
         )
+        # Phase-count changes cause a transient 0-phase device state;
+        # schedule an extra refresh so the settled value appears sooner.
+        if self.entity_description.key == "phase_count":
+            async_call_later(
+                self.hass,
+                5,
+                lambda _: self.coordinator.async_request_refresh(),
+            )
