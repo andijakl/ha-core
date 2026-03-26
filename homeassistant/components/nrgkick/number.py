@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from nrgkick_api.const import (
@@ -149,6 +150,10 @@ class NRGkickNumber(NRGkickEntity, NumberEntity):
             assert data is not None
         return self.entity_description.value_fn(data)
 
+    async def _async_delayed_refresh(self, _: datetime) -> None:
+        """Refresh data after the device has settled."""
+        await self.coordinator.async_refresh()
+
     async def async_set_native_value(self, value: float) -> None:
         """Set the value."""
         await self._async_call_api(
@@ -160,5 +165,5 @@ class NRGkickNumber(NRGkickEntity, NumberEntity):
             async_call_later(
                 self.hass,
                 5,
-                lambda _: self.coordinator.async_request_refresh(),
+                self._async_delayed_refresh,
             )
