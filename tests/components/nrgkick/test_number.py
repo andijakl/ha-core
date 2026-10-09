@@ -4,7 +4,11 @@ from datetime import timedelta
 from unittest.mock import AsyncMock
 
 from freezegun.api import FrozenDateTimeFactory
-from nrgkick_api import NRGkickCommandRejectedError
+from nrgkick_api import (
+    NRGkickAuthenticationError,
+    NRGkickCommandRejectedError,
+    NRGkickConnectionError,
+)
 from nrgkick_api.const import (
     CONTROL_KEY_CURRENT_SET,
     CONTROL_KEY_ENERGY_LIMIT,
@@ -266,6 +270,43 @@ async def test_number_command_rejected_by_device(
     # State should reflect actual device control data (unchanged).
     assert (state := hass.states.get(entity_id))
     assert state.state == "16.0"
+
+
+@pytest.mark.parametrize(
+    ("side_effect", "translation_key", "translation_placeholders"),
+    [
+        (NRGkickAuthenticationError("Unauthorized"), "authentication_error", None),
+        (
+            NRGkickConnectionError("Connection refused"),
+            "communication_error",
+            {"error": "Connection refused"},
+        ),
+    ],
+)
+async def test_number_api_errors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_nrgkick_api: AsyncMock,
+    side_effect: Exception,
+    translation_key: str,
+    translation_placeholders: dict[str, str] | None,
+) -> None:
+    """Test number entity raises translated errors when the API call fails."""
+    await setup_integration(hass, mock_config_entry, platforms=[Platform.NUMBER])
+
+    mock_nrgkick_api.set_current.side_effect = side_effect
+
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(
+            NUMBER_DOMAIN,
+            SERVICE_SET_VALUE,
+            {ATTR_ENTITY_ID: "number.nrgkick_test_charging_current", ATTR_VALUE: 10.0},
+            blocking=True,
+        )
+
+    assert err.value.translation_domain == "nrgkick"
+    assert err.value.translation_key == translation_key
+    assert err.value.translation_placeholders == translation_placeholders
 
 
 async def test_charging_current_max_limited_by_connector(

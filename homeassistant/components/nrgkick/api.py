@@ -19,36 +19,21 @@ from .const import DOMAIN
 class NRGkickApiClientError(HomeAssistantError):
     """Base exception for NRGkick API client errors."""
 
-    translation_domain = DOMAIN
-    translation_key = "unknown_error"
-
 
 class NRGkickApiClientCommunicationError(NRGkickApiClientError):
     """Exception for NRGkick API client communication errors."""
-
-    translation_domain = DOMAIN
-    translation_key = "communication_error"
 
 
 class NRGkickApiClientAuthenticationError(NRGkickApiClientError):
     """Exception for NRGkick API client authentication errors."""
 
-    translation_domain = DOMAIN
-    translation_key = "authentication_error"
-
 
 class NRGkickApiClientApiDisabledError(NRGkickApiClientError):
     """Exception for disabled NRGkick JSON API."""
 
-    translation_domain = DOMAIN
-    translation_key = "json_api_disabled"
-
 
 class NRGkickApiClientInvalidResponseError(NRGkickApiClientError):
     """Exception for invalid responses from the device."""
-
-    translation_domain = DOMAIN
-    translation_key = "invalid_response"
 
 
 async def async_api_call[_T](awaitable: Awaitable[_T]) -> _T:
@@ -68,16 +53,29 @@ async def async_api_call[_T](awaitable: Awaitable[_T]) -> _T:
             translation_placeholders={"reason": err.reason},
         ) from err
     except NRGkickAuthenticationError as err:
-        raise NRGkickApiClientAuthenticationError from err
+        raise NRGkickApiClientAuthenticationError(
+            translation_domain=DOMAIN,
+            translation_key="authentication_error",
+        ) from err
     except NRGkickAPIDisabledError as err:
-        raise NRGkickApiClientApiDisabledError from err
+        raise NRGkickApiClientApiDisabledError(
+            translation_domain=DOMAIN,
+            translation_key="json_api_disabled",
+        ) from err
     except NRGkickInvalidResponseError as err:
-        raise NRGkickApiClientInvalidResponseError from err
+        raise NRGkickApiClientInvalidResponseError(
+            translation_domain=DOMAIN,
+            translation_key="invalid_response",
+        ) from err
     except NRGkickConnectionError as err:
         raise NRGkickApiClientCommunicationError(
-            translation_placeholders={"error": str(err)}
+            translation_domain=DOMAIN,
+            translation_key="communication_error",
+            translation_placeholders={"error": str(err)},
         ) from err
     except (TimeoutError, aiohttp.ClientError, OSError) as err:
         raise NRGkickApiClientCommunicationError(
-            translation_placeholders={"error": str(err)}
+            translation_domain=DOMAIN,
+            translation_key="communication_error",
+            translation_placeholders={"error": str(err)},
         ) from err

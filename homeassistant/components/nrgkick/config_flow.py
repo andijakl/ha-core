@@ -101,7 +101,10 @@ async def validate_input(
 
     serial = info.get("general", {}).get("serial_number")
     if not serial:
-        raise NRGkickApiClientInvalidResponseError
+        raise NRGkickApiClientInvalidResponseError(
+            translation_domain=DOMAIN,
+            translation_key="invalid_response",
+        )
 
     return {
         "title": device_name,
