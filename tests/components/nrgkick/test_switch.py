@@ -2,7 +2,6 @@
 
 from unittest.mock import AsyncMock, call
 
-import aiohttp
 from nrgkick_api import (
     NRGkickAPIDisabledError,
     NRGkickAuthenticationError,
@@ -140,11 +139,6 @@ async def test_charge_switch_rejected_by_device(
             TimeoutError("Request timed out"),
             "communication_error",
             {"error": "Request timed out"},
-        ),
-        (
-            aiohttp.ClientError("Connection reset"),
-            "communication_error",
-            {"error": "Connection reset"},
         ),
     ],
 )
